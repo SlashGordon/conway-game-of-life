@@ -1,0 +1,18 @@
+{
+  "name": "conway-game-of-life",
+  "version": "1.0.0",
+  "description": "Conway's Game of Life implemented in TypeScript",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc && npx serve . -p 3000",
+    "start": "tsc && open index.html",
+    "watch": "tsc --watch"
+  },
+  "keywords": ["conway", "game-of-life", "typescript"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  }
+}

@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Conway's Game of Life</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --primary: #00f0ff;
+      --secondary: #ff00e4;
+      --accent: #7b2dff;
+      --bg-dark: #0a0a0f;
+      --bg-card: rgba(20, 20, 35, 0.8);
+      --glow-primary: 0 0 20px rgba(0, 240, 255, 0.5);
+      --glow-secondary: 0 0 20px rgba(255, 0, 228, 0.5);
+    }
+
+    body {
+      font-family: 'Rajdhani', sans-serif;
+      background: var(--bg-dark);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      color: #fff;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: 
+        radial-gradient(ellipse at 20% 20%, rgba(123, 45, 255, 0.15) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 80%, rgba(0, 240, 255, 0.1) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 50%, rgba(255, 0, 228, 0.05) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    /* Animated grid background */
+    .bg-grid {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image: 
+        linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+      background-size: 50px 50px;
+      animation: gridMove 20s linear infinite;
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    @keyframes gridMove {
+      0% { transform: translate(0, 0); }
+      100% { transform: translate(50px, 50px); }
+    }
+
+    h1 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 2.5rem;
+      font-weight: 900;
+      margin-bottom: 30px;
+      text-transform: uppercase;
+      letter-spacing: 8px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-shadow: none;
+      position: relative;
+      animation: titleGlow 3s ease-in-out infinite alternate;
+    }
+
+    h1::after {
+      content: 'Conway\'s Game of Life';
+      position: absolute;
+      left: 0;
+      top: 0;
+      background: linear-gradient(135deg, var(--primary), var(--secondary), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: blur(20px);
+      opacity: 0.5;
+      z-index: -1;
+    }
+
+    @keyframes titleGlow {
+      0% { filter: drop-shadow(0 0 10px rgba(0, 240, 255, 0.3)); }
+      100% { filter: drop-shadow(0 0 30px rgba(255, 0, 228, 0.5)); }
+    }
+
+    .controls {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 25px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    button {
+      font-family: 'Orbitron', sans-serif;
+      padding: 12px 28px;
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      border: 2px solid var(--primary);
+      border-radius: 0;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      background: transparent;
+      color: var(--primary);
+      position: relative;
+      overflow: hidden;
+      clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+    }
+
+    button::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(0, 240, 255, 0.2), transparent);
+      transition: left 0.5s;
+    }
+
+    button:hover::before {
+      left: 100%;
+    }
+
+    button:hover {
+      background: var(--primary);
+      color: var(--bg-dark);
+      box-shadow: var(--glow-primary), inset 0 0 20px rgba(0, 240, 255, 0.3);
+      transform: translateY(-3px);
+    }
+
+    button.active {
+      background: var(--secondary);
+      border-color: var(--secondary);
+      color: #fff;
+      box-shadow: var(--glow-secondary);
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 20px rgba(255, 0, 228, 0.5); }
+      50% { box-shadow: 0 0 40px rgba(255, 0, 228, 0.8), 0 0 60px rgba(255, 0, 228, 0.4); }
+    }
+
+    .panel {
+      background: var(--bg-card);
+      border: 1px solid rgba(0, 240, 255, 0.2);
+      border-radius: 0;
+      padding: 20px 30px;
+      margin-bottom: 20px;
+      backdrop-filter: blur(10px);
+      position: relative;
+      clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);
+    }
+
+    .panel::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--primary), var(--secondary), var(--accent));
+    }
+
+    .settings {
+      display: flex;
+      gap: 30px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .setting-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .setting-group label {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 120px;
+      height: 6px;
+      background: rgba(0, 240, 255, 0.2);
+      border-radius: 3px;
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      background: var(--primary);
+      border-radius: 0;
+      cursor: pointer;
+      box-shadow: var(--glow-primary);
+      clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+      transition: all 0.2s;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      background: var(--secondary);
+    }
+
+    .value-display {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--primary);
+      min-width: 60px;
+      text-align: center;
+      padding: 5px 10px;
+      background: rgba(0, 240, 255, 0.1);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+    }
+
+    .info {
+      display: flex;
+      gap: 40px;
+      margin-bottom: 25px;
+      font-size: 14px;
+    }
+
+    .info-item {
+      text-align: center;
+    }
+
+    .info-item .label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      color: rgba(255, 255, 255, 0.4);
+      margin-bottom: 5px;
+    }
+
+    .info-item .value {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--primary);
+      text-shadow: 0 0 20px rgba(0, 240, 255, 0.5);
+    }
+
+    .rules-panel {
+      display: flex;
+      gap: 25px;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .rule-group {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .rule-group > label {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .preset-select {
+      font-family: 'Rajdhani', sans-serif;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      background: rgba(0, 240, 255, 0.1);
+      border: 1px solid var(--primary);
+      color: var(--primary);
+      cursor: pointer;
+      transition: all 0.3s;
+      clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+    }
+
+    .preset-select:hover {
+      background: rgba(0, 240, 255, 0.2);
+      box-shadow: var(--glow-primary);
+    }
+
+    .preset-select option {
+      background: var(--bg-dark);
+      color: #fff;
+    }
+
+    .checkbox-group {
+      display: flex;
+      gap: 4px;
+    }
+
+    .checkbox-group label {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      cursor: pointer;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      transition: all 0.2s;
+      position: relative;
+    }
+
+    .checkbox-group label:hover {
+      background: rgba(0, 240, 255, 0.1);
+      border-color: var(--primary);
+    }
+
+    .checkbox-group input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .checkbox-group label.checked {
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      border-color: transparent;
+      color: #fff;
+      box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+      transform: scale(1.1);
+    }
+
+    .canvas-container {
+      position: relative;
+      display: inline-block;
+      margin: 10px 0;
+    }
+
+    #gameCanvas {
+      border: 2px solid rgba(0, 240, 255, 0.3);
+      cursor: crosshair;
+      box-shadow: 
+        0 0 40px rgba(0, 240, 255, 0.2),
+        inset 0 0 60px rgba(0, 0, 0, 0.5);
+      transition: box-shadow 0.3s;
+    }
+
+    #gameCanvas:hover {
+      box-shadow: 
+        0 0 60px rgba(0, 240, 255, 0.3),
+        0 0 100px rgba(255, 0, 228, 0.1),
+        inset 0 0 60px rgba(0, 0, 0, 0.5);
+    }
+
+    .resize-handle {
+      position: absolute;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      transition: all 0.3s;
+      opacity: 0.7;
+    }
+
+    .resize-handle:hover {
+      opacity: 1;
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.8);
+      transform: scale(1.2);
+    }
+
+    .resize-handle-right {
+      right: -10px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 6px;
+      height: 50px;
+      cursor: ew-resize;
+      clip-path: polygon(0 10%, 100% 0, 100% 100%, 0 90%);
+    }
+
+    .resize-handle-bottom {
+      bottom: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 50px;
+      height: 6px;
+      cursor: ns-resize;
+      clip-path: polygon(10% 0, 90% 0, 100% 100%, 0 100%);
+    }
+
+    .resize-handle-corner {
+      right: -12px;
+      bottom: -12px;
+      width: 20px;
+      height: 20px;
+      cursor: nwse-resize;
+      clip-path: polygon(0 0, 100% 0, 100% 100%);
+    }
+
+    .instructions {
+      margin-top: 25px;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.4);
+      text-align: center;
+      letter-spacing: 1px;
+    }
+
+    .instructions span {
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    /* Scanline effect */
+    .scanlines {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        rgba(0, 0, 0, 0.1) 0px,
+        rgba(0, 0, 0, 0.1) 1px,
+        transparent 1px,
+        transparent 3px
+      );
+      pointer-events: none;
+      z-index: 1000;
+      opacity: 0.3;
+    }
+
+    /* Corner decorations */
+    .corner-decor {
+      position: fixed;
+      width: 100px;
+      height: 100px;
+      pointer-events: none;
+    }
+
+    .corner-decor::before,
+    .corner-decor::after {
+      content: '';
+      position: absolute;
+      background: var(--primary);
+    }
+
+    .corner-tl {
+      top: 20px;
+      left: 20px;
+    }
+    .corner-tl::before { width: 40px; height: 2px; }
+    .corner-tl::after { width: 2px; height: 40px; }
+
+    .corner-tr {
+      top: 20px;
+      right: 20px;
+    }
+    .corner-tr::before { width: 40px; height: 2px; right: 0; }
+    .corner-tr::after { width: 2px; height: 40px; right: 0; }
+
+    .corner-bl {
+      bottom: 20px;
+      left: 20px;
+    }
+    .corner-bl::before { width: 40px; height: 2px; bottom: 0; }
+    .corner-bl::after { width: 2px; height: 40px; bottom: 0; }
+
+    .corner-br {
+      bottom: 20px;
+      right: 20px;
+    }
+    .corner-br::before { width: 40px; height: 2px; bottom: 0; right: 0; }
+    .corner-br::after { width: 2px; height: 40px; bottom: 0; right: 0; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      h1 { font-size: 1.5rem; letter-spacing: 4px; }
+      .panel { padding: 15px; }
+      .settings { gap: 15px; }
+      button { padding: 10px 18px; font-size: 11px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="scanlines"></div>
+  
+  <div class="corner-decor corner-tl"></div>
+  <div class="corner-decor corner-tr"></div>
+  <div class="corner-decor corner-bl"></div>
+  <div class="corner-decor corner-br"></div>
+
+  <h1>Conway's Game of Life</h1>
+  
+  <div class="controls">
+    <button id="startBtn">▶ Start</button>
+    <button id="stopBtn">■ Stop</button>
+    <button id="stepBtn">⏭ Step</button>
+    <button id="clearBtn">✕ Clear</button>
+    <button id="randomBtn">⚄ Random</button>
+    <button id="gliderBtn">➤ Glider</button>
+  </div>
+
+  <div class="panel">
+    <div class="settings">
+      <div class="setting-group">
+        <label for="speedRange">Speed</label>
+        <input type="range" id="speedRange" min="1" max="60" value="10">
+        <span class="value-display"><span id="speedValue1">10</span> fps</span>
+      </div>
+      <div class="setting-group">
+        <label for="gridSizeRange">Grid</label>
+        <input type="range" id="gridSizeRange" min="10" max="200" value="50">
+        <span class="value-display"><span id="gridSizeValue">50</span>×<span id="gridSizeValue2">50</span></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="rules-panel">
+      <div class="rule-group">
+        <label>Preset</label>
+        <select class="preset-select" id="rulePreset">
+          <option value="conway">Conway (B3/S23)</option>
+          <option value="highlife">HighLife (B36/S23)</option>
+          <option value="daynight">Day & Night (B3678/S34678)</option>
+          <option value="seeds">Seeds (B2/S)</option>
+          <option value="life34">Life 3-4 (B34/S34)</option>
+          <option value="diamoeba">Diamoeba (B35678/S5678)</option>
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+      <div class="rule-group">
+        <label>Birth</label>
+        <div class="checkbox-group" id="birthRules">
+          <label><span>0</span><input type="checkbox" data-count="0"></label>
+          <label><span>1</span><input type="checkbox" data-count="1"></label>
+          <label><span>2</span><input type="checkbox" data-count="2"></label>
+          <label class="checked"><span>3</span><input type="checkbox" data-count="3" checked></label>
+          <label><span>4</span><input type="checkbox" data-count="4"></label>
+          <label><span>5</span><input type="checkbox" data-count="5"></label>
+          <label><span>6</span><input type="checkbox" data-count="6"></label>
+          <label><span>7</span><input type="checkbox" data-count="7"></label>
+          <label><span>8</span><input type="checkbox" data-count="8"></label>
+        </div>
+      </div>
+      <div class="rule-group">
+        <label>Survival</label>
+        <div class="checkbox-group" id="survivalRules">
+          <label><span>0</span><input type="checkbox" data-count="0"></label>
+          <label><span>1</span><input type="checkbox" data-count="1"></label>
+          <label class="checked"><span>2</span><input type="checkbox" data-count="2" checked></label>
+          <label class="checked"><span>3</span><input type="checkbox" data-count="3" checked></label>
+          <label><span>4</span><input type="checkbox" data-count="4"></label>
+          <label><span>5</span><input type="checkbox" data-count="5"></label>
+          <label><span>6</span><input type="checkbox" data-count="6"></label>
+          <label><span>7</span><input type="checkbox" data-count="7"></label>
+          <label><span>8</span><input type="checkbox" data-count="8"></label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="info">
+    <div class="info-item">
+      <div class="label">Generation</div>
+      <div class="value" id="generation">0</div>
+    </div>
+    <div class="info-item">
+      <div class="label">Population</div>
+      <div class="value" id="population">0</div>
+    </div>
+    <div class="info-item">
+      <div class="label">Speed</div>
+      <div class="value"><span id="speedValue2">10</span> <small>fps</small></div>
+    </div>
+  </div>
+
+  <div class="canvas-container" id="canvasContainer">
+    <canvas id="gameCanvas"></canvas>
+    <div class="resize-handle resize-handle-right" id="resizeRight"></div>
+    <div class="resize-handle resize-handle-bottom" id="resizeBottom"></div>
+    <div class="resize-handle resize-handle-corner" id="resizeCorner"></div>
+  </div>
+
+  <div class="instructions">
+    <span>Click</span> or <span>drag</span> to draw • <span>Scroll</span> to zoom • <span>Space</span> to play/pause • <span>Drag edges</span> to resize
+  </div>
+
+  <script type="module" src="./dist/index.js"></script>
+</body>
+</html>
